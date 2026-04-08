@@ -64,7 +64,7 @@ app.add_middleware(
 RUNS: Dict[str, "RunRecord"] = {}
 
 # Run persistence
-_RUNS_STORE_PATH = pathlib.Path(__file__).parent / "runs_store.json"
+_RUNS_STORE_PATH = pathlib.Path(os.environ.get("RUNS_STORE_PATH", str(pathlib.Path(__file__).parent / "runs_store.json")))
 
 # ---------------------------------------------------------------------------
 # Auth — in-memory token store
