@@ -8,7 +8,7 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
 
   useEffect(() => {
-    fetch('/health').then(r => r.json()).then(d => setLlmStatus(d.llm)).catch(() => {})
+    fetch((import.meta.env.VITE_API_URL || '') + '/health').then(r => r.json()).then(d => setLlmStatus(d.llm)).catch(() => {})
     api.getMe().then(setUser).catch(() => {})
   }, [])
 

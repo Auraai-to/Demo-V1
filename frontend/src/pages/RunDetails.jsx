@@ -252,7 +252,7 @@ const TOOL_TRUST_SCORES_FE = {
 
 async function fetchLiveTrustScores() {
   try {
-    return await fetch('/api/trust-scores').then(r => r.json())
+    return await fetch((import.meta.env.VITE_API_URL || '') + '/api/trust-scores').then(r => r.json())
   } catch { return {} }
 }
 

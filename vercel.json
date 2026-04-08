@@ -1,18 +1,4 @@
 {
-  "experimentalServices": {
-    "frontend": {
-      "entrypoint": "frontend",
-      "routePrefix": "/",
-      "framework": "vite"
-    },
-    "backend": {
-      "entrypoint": "backend",
-      "routePrefix": "/api"
-    }
-  },
-  "routes": [
-    { "src": "/health", "dest": "backend" },
-    { "src": "/api/(.*)", "dest": "backend" },
-    { "src": "/(.*)", "dest": "frontend" }
-  ]
+  "version": 2,
+  "ignore": ["backend/**", "frontend/**"]
 }
