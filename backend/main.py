@@ -318,20 +318,66 @@ def _add_audit(
 
 
 # ---------------------------------------------------------------------------
-# Run persistence
+# Run persistence — Upstash Redis (if configured) with file fallback
 # ---------------------------------------------------------------------------
 
+_UPSTASH_URL   = os.getenv("UPSTASH_REDIS_REST_URL", "")
+_UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
+_REDIS_KEY     = "aura_demo_runs"
+
+
+def _redis_save(data: dict) -> bool:
+    if not _UPSTASH_URL or not _UPSTASH_TOKEN:
+        return False
+    try:
+        import requests as _req
+        payload = json.dumps(data, default=str)
+        resp = _req.post(
+            f"{_UPSTASH_URL}/set/{_REDIS_KEY}",
+            headers={"Authorization": f"Bearer {_UPSTASH_TOKEN}"},
+            json=payload,
+            timeout=5,
+        )
+        return resp.status_code == 200
+    except Exception as exc:
+        log.warning("redis_save_failed", error=str(exc))
+        return False
+
+
+def _redis_load() -> dict:
+    if not _UPSTASH_URL or not _UPSTASH_TOKEN:
+        return {}
+    try:
+        import requests as _req
+        resp = _req.get(
+            f"{_UPSTASH_URL}/get/{_REDIS_KEY}",
+            headers={"Authorization": f"Bearer {_UPSTASH_TOKEN}"},
+            timeout=5,
+        )
+        if resp.status_code != 200:
+            return {}
+        result = resp.json().get("result")
+        if not result:
+            return {}
+        return json.loads(result)
+    except Exception as exc:
+        log.warning("redis_load_failed", error=str(exc))
+        return {}
+
+
 async def _save_runs() -> None:
-    """Persist RUNS to disk as JSON. Errors are logged but never raised."""
+    """Persist RUNS to Redis (primary) and file (fallback)."""
     try:
         data = {run_id: run.model_dump() for run_id, run in RUNS.items()}
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: _RUNS_STORE_PATH.write_text(
-                json.dumps(data, default=str), encoding="utf-8"
-            ),
-        )
+        saved = await loop.run_in_executor(None, lambda: _redis_save(data))
+        if not saved:
+            await loop.run_in_executor(
+                None,
+                lambda: _RUNS_STORE_PATH.write_text(
+                    json.dumps(data, default=str), encoding="utf-8"
+                ),
+            )
     except Exception as exc:
         log.warning("runs_store_write_failed", error=str(exc))
 
@@ -1148,21 +1194,22 @@ class RunResponse(BaseModel):
 
 @app.on_event("startup")
 async def load_runs_store() -> None:
-    if not _RUNS_STORE_PATH.exists():
-        return
     try:
-        data = json.loads(_RUNS_STORE_PATH.read_text(encoding="utf-8"))
+        # Try Redis first, fall back to file
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, _redis_load)
+        if not data and _RUNS_STORE_PATH.exists():
+            data = json.loads(_RUNS_STORE_PATH.read_text(encoding="utf-8"))
         for run_id, run_dict in data.items():
             run = RunRecord(**run_dict)
             RUNS[run_id] = run
             _plan_approval_events[run_id] = asyncio.Event()
             _approval_events[run_id] = asyncio.Event()
             _cancel_flags[run_id] = False
-            # Runs that were mid-execution when the server stopped can't resume
             if run.status in ("planning", "pending_plan_approval", "executing", "pending_approval"):
                 run.status = "failed"
                 run.error = "Server restarted during execution"
-        log.info("runs_store_loaded", count=len(RUNS))
+        log.info("runs_store_loaded", count=len(RUNS), source="redis" if _UPSTASH_URL else "file")
     except Exception as exc:
         log.warning("runs_store_load_failed", error=str(exc))
 
