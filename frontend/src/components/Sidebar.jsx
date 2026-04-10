@@ -13,7 +13,7 @@ export default function Sidebar() {
     <nav className="sidebar">
       <div className="sidebar-logo">
         <h1>Aura</h1>
-        <p>Your AI Command Center</p>
+        <p>AI Workflow Automation</p>
       </div>
 
       <div className="sidebar-nav">
@@ -39,28 +39,28 @@ export default function Sidebar() {
           Integrations
         </NavLink>
 
-        <div className="nav-section-label" style={{ marginTop: 16 }}>Marketing Agents</div>
+        <div className="nav-section-label" style={{ marginTop: 16 }}>Business Workflows</div>
+
+        <button className="nav-item" onClick={() => navigate('/new?agent=sales')}>
+          <span className="icon">🤝</span>
+          Sales & CRM
+        </button>
+
+        <button className="nav-item" onClick={() => navigate('/new?agent=ops')}>
+          <span className="icon">⚙️</span>
+          Operations
+        </button>
+
+        <div className="nav-section-label" style={{ marginTop: 16 }}>Intelligence</div>
 
         <button className="nav-item" onClick={() => navigate('/new?agent=campaign')}>
           <span className="icon">📈</span>
-          Campaign Analyst
+          Marketing
         </button>
-
-        <button className="nav-item" onClick={() => navigate('/new?agent=optimizer')}>
-          <span className="icon">🎯</span>
-          Ad Optimizer
-        </button>
-
-        <div className="nav-section-label" style={{ marginTop: 16 }}>Finance Agents</div>
 
         <button className="nav-item" onClick={() => navigate('/new?agent=research')}>
           <span className="icon">🔬</span>
           Research Analyst
-        </button>
-
-        <button className="nav-item" onClick={() => navigate('/new?agent=portfolio')}>
-          <span className="icon">📊</span>
-          Portfolio Manager
         </button>
       </div>
 

@@ -64,12 +64,13 @@ def _chat(system: str, user: str, temperature: float = 0.3) -> Optional[str]:
 # Intent Agent
 # ---------------------------------------------------------------------------
 
-_INTENT_SYSTEM = """You are the Intent Agent for Aura, an AI command center.
+_INTENT_SYSTEM = """You are the Intent Agent for Aura, an AI workflow automation platform.
 Your job is to parse the user's goal and return a JSON object with:
 
 {
-  "agent_type": "campaign" | "optimizer" | "research" | "portfolio",
+  "agent_type": "sales" | "ops" | "campaign" | "research",
   "brand": "<brand or company name, or null>",
+  "company": "<prospect/vendor company name, or null>",
   "symbols": ["TICKER", ...],
   "competitors": ["CompetitorA", ...],
   "category": "<product/market category or null>",
@@ -79,10 +80,10 @@ Your job is to parse the user's goal and return a JSON object with:
 }
 
 Rules:
-- campaign = analyze marketing performance, brand search, sentiment, competitors
-- optimizer = improve/optimize campaigns, budgets, keywords, A/B tests, publish changes
-- research  = analyze stocks, equities, financials, earnings
-- portfolio = manage/rebalance an investment portfolio, execute trades
+- sales    = route leads, update CRM, notify sales team, draft emails, schedule follow-ups
+- ops      = process invoices, route tickets, trigger approvals, update task status, notify teams
+- campaign = analyze marketing performance, brand search trends, sentiment, content topics
+- research = analyze stocks, equities, financials, earnings, market data
 
 Return ONLY the JSON object, no explanation.
 """
@@ -107,6 +108,22 @@ def parse_intent(intent_text: str) -> Dict:
 # ---------------------------------------------------------------------------
 
 _MARKETING_TOOLS = {
+    "sales": [
+        "lead_scorer(company, source) — score and qualify a lead, returns tier A/B/C and recommended action",
+        "crm_lookup(company, email) — look up existing CRM records for the prospect",
+        "crm_update(company, stage, owner) — update CRM record, assign stage and owner [MODERATE RISK]",
+        "slack_notify(channel, message) — send Slack notification to sales channel",
+        "email_draft(company, to) — draft personalized follow-up email",
+        "schedule_followup(task_type, owner) — schedule follow-up task in calendar",
+    ],
+    "ops": [
+        "invoice_analyzer(vendor, amount) — extract invoice details, flag if over $10k threshold",
+        "ticket_classifier(text) — classify support ticket by priority (P1/P2/P3) and type",
+        "priority_router(priority, team) — route to the right person and team",
+        "approval_workflow(amount, approver) — trigger approval workflow [HIGH RISK — requires approval]",
+        "status_updater(system, status) — update task/ticket/invoice status in connected system",
+        "notify_team(team, message) — send notification to relevant team channel",
+    ],
     "campaign": [
         "search_trend_analysis(brand, competitors, timeframe) — real Google Trends interest over time",
         "competitor_share_of_search(brand, competitors, timeframe) — share of search vs competitors",
@@ -115,24 +132,11 @@ _MARKETING_TOOLS = {
         "news_sentiment(brand) — real headline sentiment via Google News RSS + NLP",
         "content_topics(keyword, timeframe) — rising content topics from Google Trends",
     ],
-    "optimizer": [
-        "keyword_opportunities(brand, category) — rising keyword opportunities from Google Trends",
-        "rising_queries(keyword, timeframe) — rising search queries from Google Trends",
-        "budget_optimizer(total_budget, objective, brand) — budget reallocation model",
-        "ab_test_analyzer(test_name) — A/B test statistical significance",
-        "publish_campaign(changes) — publish changes to ad platforms [HIGH RISK — requires approval]",
-    ],
     "research": [
         "stock_lookup(symbol) — live price, P/E, market cap, analyst target",
         "news_sentiment(symbol) — real news sentiment via Yahoo Finance + NLP",
         "peer_comparison(symbol, peers) — multi-symbol comparison",
         "sector_analysis(sector) — ETF-based sector performance",
-    ],
-    "portfolio": [
-        "get_portfolio() — current holdings with live prices",
-        "risk_assessment() — beta, Sharpe, VaR 95%, max drawdown",
-        "calculate_rebalance(target_allocation) — returns trades_required list with symbol/action/shares for each trade",
-        "execute_trade(symbol, action, shares, amount) — executes the first trade from calculate_rebalance output [HIGH RISK — requires approval]. Use symbol='AAPL', action='SELL', shares=50, amount=0 as placeholder args; the engine resolves real values at runtime from the calculate_rebalance result.",
     ],
 }
 

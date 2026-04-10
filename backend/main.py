@@ -1,16 +1,14 @@
 """
-Aura — Your AI Command Center
-Demo Backend v0.3
+Aura — Your AI Workflow Automation Platform
+Demo Backend v0.4
 
-Marketing Agents:
-  1. Campaign Analyst  — campaign_analytics, audience_insights, ad_performance,
-                         competitor_analysis, content_performance, channel_comparison
-  2. Ad Optimizer      — budget_optimizer, ab_test_analyzer, keyword_analysis,
-                         bid_strategy, audience_expansion, publish_campaign
+Business Workflow Agents:
+  1. Sales & CRM      — lead_scorer, crm_lookup, crm_update, slack_notify, email_draft, schedule_followup
+  2. Operations       — invoice_analyzer, ticket_classifier, priority_router, approval_workflow, status_updater, notify_team
 
-Investment Agents (live Yahoo Finance data):
-  3. Research Analyst  — stock_lookup, news_sentiment, peer_comparison, sector_analysis
-  4. Portfolio Manager — get_portfolio, risk_assessment, calculate_rebalance, execute_trade
+Intelligence Agents:
+  3. Marketing        — search_trend_analysis, competitor_share_of_search, rising_queries, news_sentiment, content_topics
+  4. Research Analyst — stock_lookup, news_sentiment, peer_comparison, sector_analysis (live Yahoo Finance)
 
 Governance flow with 4 visible pipeline stages:
   [Intent Agent] → [Tool Router] → [Plan Builder] → [Workflow Engine]
@@ -39,6 +37,7 @@ load_dotenv()
 
 from tools import TOOL_REGISTRY, call_tool
 from marketing_tools import MARKETING_TOOL_REGISTRY, call_marketing_tool
+from business_tools import BUSINESS_TOOL_REGISTRY, call_business_tool
 from llm import (
     llm_available, parse_intent, build_plan, get_tools_for_agent,
 )
@@ -84,14 +83,18 @@ def _get_current_user() -> Dict:
 # ---------------------------------------------------------------------------
 
 _INTEGRATIONS: List[Dict] = [
-    {"id": "google_ads",       "name": "Google Ads",       "category": "Advertising", "connected": True},
-    {"id": "meta_ads",         "name": "Meta Ads",         "category": "Advertising", "connected": True},
-    {"id": "google_analytics", "name": "Google Analytics", "category": "Analytics",   "connected": True},
-    {"id": "hubspot",          "name": "HubSpot",          "category": "CRM",         "connected": True},
-    {"id": "linkedin_ads",     "name": "LinkedIn Ads",     "category": "Advertising", "connected": False},
-    {"id": "mailchimp",        "name": "Mailchimp",        "category": "Email",       "connected": False},
-    {"id": "salesforce",       "name": "Salesforce",       "category": "CRM",         "connected": False},
-    {"id": "slack",            "name": "Slack",            "category": "Messaging",   "connected": False},
+    {"id": "slack",            "name": "Slack",            "category": "Messaging",      "connected": True},
+    {"id": "hubspot",          "name": "HubSpot",          "category": "CRM",            "connected": True},
+    {"id": "gmail",            "name": "Gmail",            "category": "Email",          "connected": True},
+    {"id": "stripe",           "name": "Stripe",           "category": "Payments",       "connected": True},
+    {"id": "openai",           "name": "OpenAI",           "category": "AI Models",      "connected": True},
+    {"id": "claude",           "name": "Claude",           "category": "AI Models",      "connected": True},
+    {"id": "salesforce",       "name": "Salesforce",       "category": "CRM",            "connected": False},
+    {"id": "notion",           "name": "Notion",           "category": "Productivity",   "connected": False},
+    {"id": "jira",             "name": "Jira",             "category": "Project Mgmt",   "connected": False},
+    {"id": "zapier",           "name": "Zapier",           "category": "Automation",     "connected": False},
+    {"id": "mailchimp",        "name": "Mailchimp",        "category": "Email",          "connected": False},
+    {"id": "google_analytics", "name": "Google Analytics", "category": "Analytics",      "connected": False},
 ]
 
 # ---------------------------------------------------------------------------
@@ -100,27 +103,35 @@ _INTEGRATIONS: List[Dict] = [
 
 # Seed values — represent prior observed reliability before this session
 _TRUST_SEED: Dict[str, float] = {
-    # Investment tools
+    # Research tools (live Yahoo Finance + NLP)
     "stock_lookup":        0.94,
     "news_sentiment":      0.89,
     "peer_comparison":     0.91,
     "sector_analysis":     0.87,
-    "get_portfolio":       0.96,
-    "risk_assessment":     0.93,
-    "calculate_rebalance": 0.88,
-    "execute_trade":       0.82,
-    # Marketing tools (real data via pytrends + Google News RSS)
+    # Marketing tools (live Google Trends + Google News RSS)
     "search_trend_analysis":      0.93,
     "competitor_share_of_search": 0.92,
     "regional_interest":          0.91,
     "rising_queries":             0.90,
-    "news_sentiment":             0.89,
     "content_topics":             0.91,
     "keyword_opportunities":      0.90,
-    # Simulation tools (ad platform write access needed for real data)
-    "budget_optimizer":    0.88,
-    "ab_test_analyzer":    0.87,
-    "publish_campaign":    0.84,
+    "budget_optimizer":           0.88,
+    "ab_test_analyzer":           0.87,
+    "publish_campaign":           0.84,
+    # Sales & CRM tools
+    "lead_scorer":       0.95,
+    "crm_lookup":        0.97,
+    "crm_update":        0.93,
+    "slack_notify":      0.98,
+    "email_draft":       0.91,
+    "schedule_followup": 0.96,
+    # Operations tools
+    "invoice_analyzer":  0.94,
+    "ticket_classifier": 0.92,
+    "priority_router":   0.95,
+    "approval_workflow": 0.88,
+    "status_updater":    0.96,
+    "notify_team":       0.97,
 }
 
 # Live trust state — mutated after every tool invocation
@@ -596,6 +607,46 @@ def _generate_result_summary(run: RunRecord) -> str:
             f"Rollback available — audit ref {audit_ref}."
         )
 
+    elif run.agent_type == "sales":
+        crm   = next((s.result for s in run.steps if s.tool_id == "crm_update" and s.result), {})
+        lead  = next((s.result for s in run.steps if s.tool_id == "lead_scorer" and s.result), {})
+        slack = next((s.result for s in run.steps if s.tool_id == "slack_notify" and s.result), {})
+        score = lead.get("lead_score", "N/A")
+        tier  = lead.get("tier", "B")
+        owner = crm.get("owner_assigned", "Sales Rep")
+        chan  = slack.get("channel", "#sales-leads")
+        return (
+            f"Lead successfully routed. Score: {score}/100 (Tier {tier}). "
+            f"CRM updated — assigned to {owner}. "
+            f"Team notified via {chan}. Follow-up call scheduled in 48h. "
+            f"Full lead profile, drafted email, and audit trail available in step results."
+        )
+
+    elif run.agent_type == "ops":
+        invoice  = next((s.result for s in run.steps if s.tool_id == "invoice_analyzer" and s.result), {})
+        ticket   = next((s.result for s in run.steps if s.tool_id == "ticket_classifier" and s.result), {})
+        approval = next((s.result for s in run.steps if s.tool_id == "approval_workflow" and s.result), {})
+        if invoice:
+            amount = invoice.get("amount", "N/A")
+            vendor = invoice.get("vendor", "Vendor")
+            appr   = approval.get("approver", "CFO")
+            wf_id  = approval.get("workflow_id", "APPR-XXXX")
+            return (
+                f"Invoice processed. ${amount:,} from {vendor} flagged and routed for {appr} approval. "
+                f"Approval workflow {wf_id} triggered — deadline 48h. "
+                f"Finance team notified via Slack. Full audit trail in step results."
+            )
+        elif ticket:
+            priority  = ticket.get("priority", "P2")
+            category  = ticket.get("category", "General")
+            wf_id     = approval.get("workflow_id", "APPR-XXXX")
+            return (
+                f"Ticket classified as {priority} — {category}. "
+                f"Routed to on-call engineer with SLA tracking active. "
+                f"Escalation workflow {wf_id} triggered. Team notified. "
+                f"Full classification report and routing details in step results."
+            )
+
     return "Run completed successfully."
 
 
@@ -733,6 +784,102 @@ def _generate_ad_optimizer_plan(intent: str) -> List[StepRecord]:
 
 
 # ---------------------------------------------------------------------------
+# Plan generators — business workflows
+# ---------------------------------------------------------------------------
+
+def _generate_sales_plan(intent: str) -> List[StepRecord]:
+    text = intent.lower()
+    company = "Acme Corp"
+    for word in intent.split():
+        if word[0].isupper() and len(word) > 3 and word.lower() not in ("route", "lead", "leads", "sales", "team", "notify", "assign", "create", "send", "draft"):
+            company = word
+            break
+
+    steps = [
+        StepRecord(step_id="s1", name=f"Score and qualify lead — {company}",
+                   tool_id="lead_scorer",
+                   args={"company": company, "source": "website"},
+                   risk_score=0.12),
+        StepRecord(step_id="s2", name=f"Look up {company} in CRM",
+                   tool_id="crm_lookup",
+                   args={"company": company, "email": f"contact@{company.lower().replace(' ','')}.com"},
+                   risk_score=0.10),
+        StepRecord(step_id="s3", name="Update CRM record — assign to sales rep",
+                   tool_id="crm_update",
+                   args={"company": company, "stage": "SQL", "owner": "Sarah Chen"},
+                   risk_score=0.35),
+        StepRecord(step_id="s4", name="Notify #sales-leads channel on Slack",
+                   tool_id="slack_notify",
+                   args={"channel": "#sales-leads",
+                         "message": f"🔥 New high-value lead: {company} — assigned to Sarah Chen"},
+                   risk_score=0.20),
+        StepRecord(step_id="s5", name="Draft personalized follow-up email",
+                   tool_id="email_draft",
+                   args={"company": company, "to": f"contact@{company.lower().replace(' ','')}.com"},
+                   risk_score=0.22),
+        StepRecord(step_id="s6", name="Schedule follow-up call in 48h",
+                   tool_id="schedule_followup",
+                   args={"task_type": "Discovery call", "owner": "Sarah Chen"},
+                   risk_score=0.12),
+    ]
+    return steps
+
+
+def _generate_ops_plan(intent: str) -> List[StepRecord]:
+    text = intent.lower()
+    is_invoice = any(w in text for w in ["invoice", "payment", "bill", "vendor", "expense"])
+    is_ticket  = any(w in text for w in ["ticket", "support", "issue", "bug", "request"])
+
+    if is_invoice:
+        return [
+            StepRecord(step_id="s1", name="Analyze and extract invoice details",
+                       tool_id="invoice_analyzer",
+                       args={"vendor": "Cloudtech Solutions", "amount": 18500},
+                       risk_score=0.12),
+            StepRecord(step_id="s2", name="Route to appropriate approval owner",
+                       tool_id="priority_router",
+                       args={"priority": "High", "team": "Finance"},
+                       risk_score=0.22),
+            StepRecord(step_id="s3", name="Trigger CFO approval workflow — $18,500",
+                       tool_id="approval_workflow",
+                       args={"amount": 18500, "approver": "CFO"},
+                       risk_score=0.75, requires_approval=True),
+            StepRecord(step_id="s4", name="Update invoice status in system",
+                       tool_id="status_updater",
+                       args={"system": "Stripe", "status": "Pending Approval"},
+                       risk_score=0.18),
+            StepRecord(step_id="s5", name="Notify Finance team via Slack",
+                       tool_id="notify_team",
+                       args={"team": "Finance", "message": "Invoice INV-18500 from Cloudtech routed for CFO approval"},
+                       risk_score=0.15),
+        ]
+    else:
+        return [
+            StepRecord(step_id="s1", name="Classify support ticket by priority and type",
+                       tool_id="ticket_classifier",
+                       args={"text": intent},
+                       risk_score=0.12),
+            StepRecord(step_id="s2", name="Route ticket to right engineer",
+                       tool_id="priority_router",
+                       args={"priority": "P2 — High", "team": "Platform Engineering"},
+                       risk_score=0.22),
+            StepRecord(step_id="s3", name="Trigger escalation approval for P1 tickets",
+                       tool_id="approval_workflow",
+                       args={"amount": 0, "approver": "Engineering Lead"},
+                       risk_score=0.72, requires_approval=True),
+            StepRecord(step_id="s4", name="Update ticket status to In Review",
+                       tool_id="status_updater",
+                       args={"system": "Jira", "status": "In Review"},
+                       risk_score=0.15),
+            StepRecord(step_id="s5", name="Notify team with ticket summary",
+                       tool_id="notify_team",
+                       args={"team": "Platform Engineering",
+                             "message": "P2 ticket assigned to Marcus Webb — SLA: 4h"},
+                       risk_score=0.12),
+        ]
+
+
+# ---------------------------------------------------------------------------
 # Execution engine
 # ---------------------------------------------------------------------------
 
@@ -742,8 +889,12 @@ async def run_execution_engine(run_id: str) -> None:
     approval_event = _approval_events[run_id]
 
     # Determine tool dispatcher
-    is_marketing = run.agent_type in ("campaign", "optimizer")
-    _call_tool = call_marketing_tool if is_marketing else call_tool
+    def _call_tool(tool_id: str, args: dict):
+        if tool_id in BUSINESS_TOOL_REGISTRY:
+            return call_business_tool(tool_id, args)
+        if tool_id in MARKETING_TOOL_REGISTRY:
+            return call_marketing_tool(tool_id, args)
+        return call_tool(tool_id, args)
 
     try:
         # ── Stage 1: Intent Agent ──────────────────────────────────────────
@@ -762,8 +913,6 @@ async def run_execution_engine(run_id: str) -> None:
                 log.info("agent_type_corrected",
                          original=run.agent_type, corrected=intent_data["agent_type"])
                 run.agent_type = intent_data["agent_type"]
-                is_marketing = run.agent_type in ("campaign", "optimizer")
-                _call_tool = call_marketing_tool if is_marketing else call_tool
         else:
             await asyncio.sleep(0.6)
 
@@ -816,10 +965,12 @@ async def run_execution_engine(run_id: str) -> None:
                 run.steps = _generate_research_plan(run.intent)
             elif run.agent_type == "portfolio":
                 run.steps = _generate_portfolio_plan(run.intent)
-            elif run.agent_type == "campaign":
+                    elif run.agent_type == "campaign":
                 run.steps = _generate_campaign_analyst_plan(run.intent)
-            elif run.agent_type == "optimizer":
-                run.steps = _generate_ad_optimizer_plan(run.intent)
+            elif run.agent_type == "sales":
+                run.steps = _generate_sales_plan(run.intent)
+            elif run.agent_type == "ops":
+                run.steps = _generate_ops_plan(run.intent)
             else:
                 run.status = "failed"
                 run.error = f"Unknown agent_type: {run.agent_type}"
