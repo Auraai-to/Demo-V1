@@ -1087,7 +1087,7 @@ async def get_trust_scores(current_user: Dict = Depends(_get_current_user)):
     return result
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     return {
         "status": "ok",
