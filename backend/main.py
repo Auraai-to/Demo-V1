@@ -77,14 +77,18 @@ _DEMO_USER = {
     "password": os.getenv("DEMO_PASSWORD", "demo"),
 }
 
-_SESSIONS: Dict[str, str] = {}  # token → user_id
+def _make_token(password: str) -> str:
+    import hmac, hashlib
+    secret = os.getenv("TOKEN_SECRET", "aura-demo-secret")
+    return hmac.new(secret.encode(), password.encode(), hashlib.sha256).hexdigest()
 
 _bearer = HTTPBearer(auto_error=False)
 
 def _get_current_user(
     creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ) -> Dict:
-    if not creds or creds.credentials not in _SESSIONS:
+    expected = _make_token(_DEMO_USER["password"])
+    if not creds or creds.credentials != expected:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return _DEMO_USER
 
@@ -1038,8 +1042,7 @@ class LoginRequest(BaseModel):
 async def login(req: LoginRequest):
     if req.email != _DEMO_USER["email"] or req.password != _DEMO_USER["password"]:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = uuid.uuid4().hex
-    _SESSIONS[token] = _DEMO_USER["user_id"]
+    token = _make_token(req.password)
     log.info("user_login", email=req.email)
     return {"token": token, "user": {"email": _DEMO_USER["email"], "name": _DEMO_USER["name"]}}
 
