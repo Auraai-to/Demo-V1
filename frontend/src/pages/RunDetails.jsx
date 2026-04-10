@@ -493,7 +493,7 @@ export default function RunDetails() {
           ← Back
         </button>
         <span className="topbar-title">
-          {{ research: '🔬', portfolio: '📊', campaign: '📈', optimizer: '🎯' }[run.agent_type] || '🤖'}{' '}
+          {{ research: '🔬', sales: '🤝', ops: '⚙️', campaign: '📈' }[run.agent_type] || '🤖'}{' '}
           {run.agent_type.charAt(0).toUpperCase() + run.agent_type.slice(1)} Agent
         </span>
         <StatusBadge status={run.status} />

@@ -963,9 +963,7 @@ async def run_execution_engine(run_id: str) -> None:
             # Fallback to rule-based
             if run.agent_type == "research":
                 run.steps = _generate_research_plan(run.intent)
-            elif run.agent_type == "portfolio":
-                run.steps = _generate_portfolio_plan(run.intent)
-                    elif run.agent_type == "campaign":
+            elif run.agent_type == "campaign":
                 run.steps = _generate_campaign_analyst_plan(run.intent)
             elif run.agent_type == "sales":
                 run.steps = _generate_sales_plan(run.intent)
@@ -1235,7 +1233,7 @@ async def health():
         "service": "aura-demo",
         "version": "0.3.0",
         "llm": "groq/" + os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile") if llm_available() else "not_configured",
-        "agents": ["campaign", "optimizer", "research", "portfolio"],
+        "agents": ["sales", "ops", "campaign", "research"],
         "runs_in_memory": len(RUNS),
     }
 
@@ -1263,7 +1261,7 @@ async def get_stats(current_user: Dict = Depends(_get_current_user)):
 
 @app.post("/runs", response_model=RunResponse)
 async def submit_run(req: SubmitRunRequest, background_tasks: BackgroundTasks, current_user: Dict = Depends(_get_current_user)):
-    if req.agent_type not in ("research", "portfolio", "campaign", "optimizer"):
+    if req.agent_type not in ("research", "campaign", "sales", "ops"):
         raise HTTPException(400, detail=f"Invalid agent_type '{req.agent_type}'.")
     if not req.intent.strip():
         raise HTTPException(400, detail="Intent must not be empty.")

@@ -180,7 +180,9 @@ export default function Dashboard() {
                     <tr key={run.run_id} style={{ cursor: 'pointer' }}
                         onClick={() => navigate(`/runs/${run.run_id}`)}>
                       <td>
-                        <span style={{ marginRight: 6 }}>{run.agent_type === 'research' ? '🔬' : '📊'}</span>
+                        <span style={{ marginRight: 6 }}>
+                          {run.agent_type === 'sales' ? '🤝' : run.agent_type === 'ops' ? '⚙️' : run.agent_type === 'research' ? '🔬' : '📈'}
+                        </span>
                         <span style={{ textTransform: 'capitalize' }}>{run.agent_type}</span>
                       </td>
                       <td style={{ maxWidth: 300 }}>

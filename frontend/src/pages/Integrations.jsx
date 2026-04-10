@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 
 const CATEGORY_ICONS = {
-  Advertising: '📣',
-  Analytics:   '📊',
-  CRM:         '🤝',
-  Email:       '✉️',
-  Messaging:   '💬',
+  Messaging:     '💬',
+  CRM:           '🤝',
+  Email:         '✉️',
+  Payments:      '💳',
+  'AI Models':   '🤖',
+  Productivity:  '📝',
+  'Project Mgmt':'📋',
+  Automation:    '⚡',
+  Analytics:     '📊',
 }
 
 export default function Integrations() {
