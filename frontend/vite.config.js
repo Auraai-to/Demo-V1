@@ -9,7 +9,10 @@ export default defineConfig({
   server: {
     port: frontendPort,
     proxy: {
-      '/api':    backendUrl,
+      '/api': {
+        target: backendUrl,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
       '/health': backendUrl,
     },
   },

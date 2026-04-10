@@ -1034,7 +1034,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-@app.post("/api/auth/login")
+@app.post("/auth/login")
 async def login(req: LoginRequest):
     if req.email != _DEMO_USER["email"] or req.password != _DEMO_USER["password"]:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -1044,19 +1044,19 @@ async def login(req: LoginRequest):
     return {"token": token, "user": {"email": _DEMO_USER["email"], "name": _DEMO_USER["name"]}}
 
 
-@app.get("/api/auth/me")
+@app.get("/auth/me")
 async def me(current_user: Dict = Depends(_get_current_user)):
     return {"email": current_user["email"], "name": current_user["name"]}
 
 
 # ── Integrations ──────────────────────────────────────────────────────────
 
-@app.get("/api/integrations")
+@app.get("/integrations")
 async def get_integrations(current_user: Dict = Depends(_get_current_user)):
     return _INTEGRATIONS
 
 
-@app.post("/api/integrations/{integration_id}/toggle")
+@app.post("/integrations/{integration_id}/toggle")
 async def toggle_integration(
     integration_id: str,
     current_user: Dict = Depends(_get_current_user),
@@ -1069,7 +1069,7 @@ async def toggle_integration(
     raise HTTPException(404, detail=f"Integration '{integration_id}' not found.")
 
 
-@app.get("/api/trust-scores")
+@app.get("/trust-scores")
 async def get_trust_scores(current_user: Dict = Depends(_get_current_user)):
     """Live trust scores — EMA-updated after every tool execution."""
     result = {}
@@ -1087,7 +1087,7 @@ async def get_trust_scores(current_user: Dict = Depends(_get_current_user)):
     return result
 
 
-@app.get("/api/health")
+@app.get("/health")
 async def health():
     return {
         "status": "ok",
@@ -1099,7 +1099,7 @@ async def health():
     }
 
 
-@app.get("/api/stats")
+@app.get("/stats")
 async def get_stats(current_user: Dict = Depends(_get_current_user)):
     all_runs = list(RUNS.values())
     all_steps = [s for r in all_runs for s in r.steps]
@@ -1120,7 +1120,7 @@ async def get_stats(current_user: Dict = Depends(_get_current_user)):
     }
 
 
-@app.post("/api/runs", response_model=RunResponse)
+@app.post("/runs", response_model=RunResponse)
 async def submit_run(req: SubmitRunRequest, background_tasks: BackgroundTasks, current_user: Dict = Depends(_get_current_user)):
     if req.agent_type not in ("research", "portfolio", "campaign", "optimizer"):
         raise HTTPException(400, detail=f"Invalid agent_type '{req.agent_type}'.")
@@ -1145,12 +1145,12 @@ async def submit_run(req: SubmitRunRequest, background_tasks: BackgroundTasks, c
     return run
 
 
-@app.get("/api/runs", response_model=List[RunResponse])
+@app.get("/runs", response_model=List[RunResponse])
 async def list_runs(current_user: Dict = Depends(_get_current_user)):
     return sorted(RUNS.values(), key=lambda r: r.created_at, reverse=True)
 
 
-@app.get("/api/runs/{run_id}", response_model=RunResponse)
+@app.get("/runs/{run_id}", response_model=RunResponse)
 async def get_run(run_id: str, current_user: Dict = Depends(_get_current_user)):
     run = RUNS.get(run_id)
     if not run:
@@ -1158,7 +1158,7 @@ async def get_run(run_id: str, current_user: Dict = Depends(_get_current_user)):
     return run
 
 
-@app.post("/api/runs/{run_id}/approve-plan")
+@app.post("/runs/{run_id}/approve-plan")
 async def approve_plan(run_id: str, current_user: Dict = Depends(_get_current_user)):
     run = RUNS.get(run_id)
     if not run:
@@ -1172,7 +1172,7 @@ async def approve_plan(run_id: str, current_user: Dict = Depends(_get_current_us
     return {"message": "Plan approved. Execution starting.", "run_id": run_id}
 
 
-@app.post("/api/runs/{run_id}/approve")
+@app.post("/runs/{run_id}/approve")
 async def approve_run(run_id: str, current_user: Dict = Depends(_get_current_user)):
     run = RUNS.get(run_id)
     if not run:
@@ -1186,7 +1186,7 @@ async def approve_run(run_id: str, current_user: Dict = Depends(_get_current_use
     return {"message": "Approval granted. Execution resuming.", "run_id": run_id}
 
 
-@app.post("/api/runs/{run_id}/cancel")
+@app.post("/runs/{run_id}/cancel")
 async def cancel_run(run_id: str, current_user: Dict = Depends(_get_current_user)):
     run = RUNS.get(run_id)
     if not run:
@@ -1202,7 +1202,7 @@ async def cancel_run(run_id: str, current_user: Dict = Depends(_get_current_user
     return {"message": "Run cancelled.", "run_id": run_id}
 
 
-@app.delete("/api/runs")
+@app.delete("/runs")
 async def clear_runs(current_user: Dict = Depends(_get_current_user)):
     RUNS.clear()
     _plan_approval_events.clear()
