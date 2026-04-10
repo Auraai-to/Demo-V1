@@ -85,8 +85,8 @@ export default function NewRun() {
   }
 
   const agent = AGENTS.find(a => a.type === selectedAgent)
-  const marketing = AGENTS.filter(a => a.category === 'Marketing')
-  const finance = AGENTS.filter(a => a.category === 'Finance')
+  const business = AGENTS.filter(a => a.category === 'Business')
+  const intelligence = AGENTS.filter(a => a.category === 'Intelligence')
 
   return (
     <>
@@ -102,10 +102,10 @@ export default function NewRun() {
           <div className="card-header"><div className="card-title">1 — Choose Agent</div></div>
 
           <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-            Marketing
+            Business Workflows
           </div>
           <div className="grid-2" style={{ marginBottom: 16 }}>
-            {marketing.map(a => (
+            {business.map(a => (
               <div key={a.type} className={`agent-card${selectedAgent === a.type ? ' selected' : ''}`}
                    onClick={() => setSelectedAgent(a.type)}>
                 <div className="agent-icon">{a.icon}</div>
@@ -117,10 +117,10 @@ export default function NewRun() {
           </div>
 
           <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-            Finance
+            Intelligence
           </div>
           <div className="grid-2">
-            {finance.map(a => (
+            {intelligence.map(a => (
               <div key={a.type} className={`agent-card${selectedAgent === a.type ? ' selected' : ''}`}
                    onClick={() => setSelectedAgent(a.type)}>
                 <div className="agent-icon">{a.icon}</div>
@@ -156,10 +156,10 @@ export default function NewRun() {
             <label className="form-label">Intent</label>
             <textarea className="form-textarea"
               placeholder={
-                selectedAgent === 'campaign' ? 'e.g. Audit all campaigns and find where we\'re wasting budget…'
-                : selectedAgent === 'optimizer' ? 'e.g. Optimize budget allocation to maximize ROAS…'
-                : selectedAgent === 'research'  ? 'e.g. Analyze NVDA vs AMD vs INTC for Q2 2026…'
-                : selectedAgent === 'portfolio' ? 'e.g. Rebalance to 70/20/10 allocation…'
+                selectedAgent === 'sales'    ? 'e.g. Route new leads to sales and notify the team…'
+                : selectedAgent === 'ops'    ? 'e.g. Process invoices over $10,000 for CFO approval…'
+                : selectedAgent === 'campaign' ? 'e.g. Analyze Nike brand performance vs Adidas and Puma…'
+                : selectedAgent === 'research' ? 'e.g. Analyze NVDA vs AMD vs INTC for Q2 2026…'
                 : 'Describe what you want the agent to do…'
               }
               value={intent}
