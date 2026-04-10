@@ -6,9 +6,25 @@ Each tool mirrors a real integration action: Slack, HubSpot CRM, Stripe, Jira, e
 """
 
 import asyncio
+import os
 import random
 from datetime import datetime, timezone
 from typing import Any, Dict
+
+import requests
+
+_SLACK_WEBHOOK = os.getenv("SLACK_WEBHOOK_URL", "")
+
+
+def _post_slack(text: str) -> bool:
+    """POST to Slack webhook. Returns True on success, False on failure."""
+    if not _SLACK_WEBHOOK:
+        return False
+    try:
+        resp = requests.post(_SLACK_WEBHOOK, json={"text": text}, timeout=5)
+        return resp.status_code == 200
+    except Exception:
+        return False
 
 # ---------------------------------------------------------------------------
 # Sales & CRM tools
@@ -64,11 +80,15 @@ async def crm_update(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def slack_notify(args: Dict[str, Any]) -> Dict[str, Any]:
-    await asyncio.sleep(0.6)
-    channel  = args.get("channel", "#sales-leads")
-    message  = args.get("message", "New high-value lead routed to sales")
+    channel = args.get("channel", "#sales-leads")
+    message = args.get("message", "New high-value lead routed to sales")
+    text    = f"*Aura Agent* | {channel}\n{message}"
+    sent    = await asyncio.get_event_loop().run_in_executor(None, lambda: _post_slack(text))
+    if not sent:
+        await asyncio.sleep(0.6)  # fallback mock delay
     return {
         "sent": True,
+        "real_slack": sent,
         "channel": channel,
         "message_preview": message[:80],
         "recipients_notified": random.randint(3, 8),
@@ -200,13 +220,18 @@ async def status_updater(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def notify_team(args: Dict[str, Any]) -> Dict[str, Any]:
-    await asyncio.sleep(0.5)
     team    = args.get("team", "Operations")
     message = args.get("message", "Action completed — see details in dashboard")
+    channel = f"#{team.lower().replace(' ', '-')}"
+    text    = f"*Aura Agent* | {channel}\n{message}"
+    sent    = await asyncio.get_event_loop().run_in_executor(None, lambda: _post_slack(text))
+    if not sent:
+        await asyncio.sleep(0.5)
     return {
         "sent": True,
+        "real_slack": sent,
         "team": team,
-        "channel": f"#{team.lower().replace(' ', '-')}",
+        "channel": channel,
         "message_preview": message[:80],
         "recipients": random.randint(4, 12),
         "timestamp": datetime.now(timezone.utc).isoformat(),
