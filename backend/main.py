@@ -67,29 +67,16 @@ RUNS: Dict[str, "RunRecord"] = {}
 _RUNS_STORE_PATH = pathlib.Path(os.environ.get("RUNS_STORE_PATH", str(pathlib.Path(__file__).parent / "runs_store.json")))
 
 # ---------------------------------------------------------------------------
-# Auth — in-memory token store
+# Auth — disabled for demo, all routes public
 # ---------------------------------------------------------------------------
 
 _DEMO_USER = {
-    "user_id":  "user_demo_001",
-    "email":    "demo@aura.ai",
-    "name":     "Demo User",
-    "password": os.getenv("DEMO_PASSWORD", "demo"),
+    "user_id": "user_demo_001",
+    "email":   "demo@aura.ai",
+    "name":    "Demo User",
 }
 
-def _make_token(password: str) -> str:
-    import hmac, hashlib
-    secret = os.getenv("TOKEN_SECRET", "aura-demo-secret")
-    return hmac.new(secret.encode(), password.encode(), hashlib.sha256).hexdigest()
-
-_bearer = HTTPBearer(auto_error=False)
-
-def _get_current_user(
-    creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
-) -> Dict:
-    expected = _make_token(_DEMO_USER["password"])
-    if not creds or creds.credentials != expected:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+def _get_current_user() -> Dict:
     return _DEMO_USER
 
 # ---------------------------------------------------------------------------

@@ -1,21 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { api } from '../api'
 
 export default function Sidebar() {
   const navigate = useNavigate()
   const [llmStatus, setLlmStatus] = useState(null)
-  const [user, setUser] = useState(null)
 
   useEffect(() => {
     fetch((import.meta.env.VITE_API_URL || '') + '/api/health').then(r => r.json()).then(d => setLlmStatus(d.llm)).catch(() => {})
-    api.getMe().then(setUser).catch(() => {})
   }, [])
-
-  const logout = () => {
-    localStorage.removeItem('aura_token')
-    navigate('/login')
-  }
 
   return (
     <nav className="sidebar">
@@ -73,15 +65,6 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
-        {user && (
-          <div className="sidebar-user">
-            <div className="sidebar-user-name">{user.name}</div>
-            <div className="sidebar-user-email">{user.email}</div>
-          </div>
-        )}
-        <button className="btn btn-secondary btn-sm" onClick={logout} style={{ width: '100%', marginBottom: 8 }}>
-          Sign out
-        </button>
         <div className="sidebar-badge" style={{ marginBottom: 8 }}>
           <span className="dot-green" />
           <span>Governed · Audited · Safe</span>
